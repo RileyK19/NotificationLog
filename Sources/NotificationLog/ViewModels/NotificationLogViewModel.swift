@@ -14,7 +14,7 @@ public final class NotificationLogViewModel: ObservableObject {
     // MARK: - Private
 
     private let service: NotificationLogService
-    private let config: NotificationLogConfig
+    let config: NotificationLogConfig
     private var pollTask: Task<Void, Never>?
 
     private var seenIDs: Set<String> {

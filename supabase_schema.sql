@@ -50,3 +50,30 @@ values
         now() - interval '1 day',
         '{"description": "Maintenance Saturday 2–4 AM PST. The app may be briefly unavailable.", "image_url": null}'
     );
+
+-- Bug report / Feature suggestion addition
+
+create table if not exists feedback (
+    feedback_id  uuid        primary key default gen_random_uuid(),
+    app_id       text        not null,
+    type         text        not null check (type in ('bug', 'suggestion')),
+    title        text        not null,
+    description  text,
+    sender_name  text,
+    app_version  text,
+    device_info  text,
+    date_added   timestamptz not null default now()
+);
+
+create index if not exists feedback_app_id_idx
+    on feedback (app_id, date_added desc);
+
+alter table feedback enable row level security;
+
+create policy "Public insert"
+    on feedback for insert
+    with check (true);
+
+create policy "Service read"
+    on feedback for select
+    using (auth.role() = 'service_role');
