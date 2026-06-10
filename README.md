@@ -8,9 +8,9 @@ Also includes a built-in feedback system for bug reports and suggestions, and an
 
 ## Screenshots
 
-| Notification Log | Notification Detail | Feedback Sheet |
-|:---:|:---:|:---:|
-| ![Notification Log](Screenshots/NotificationLog.png) | ![Admin](Screenshots/AdminNotificationLog.png) | ![Feedback Sheet](Screenshots/FeedbackSheet.png) |
+| Notification Log | Feedback Sheet |
+|:---:|:---:|
+| ![Notification Log](Screenshots/NotificationLog.png) | ![Feedback Sheet](Screenshots/FeedbackSheet.png) |
 
 | Admin — Send | Admin — Feedback |
 |:---:|:---:|
