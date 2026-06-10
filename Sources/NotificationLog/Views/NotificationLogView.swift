@@ -50,6 +50,19 @@ public struct NotificationLogView: View {
 
     private var list: some View {
         List {
+            if let summary = viewModel.summaryText {
+                Section {
+                    HStack(spacing: 10) {
+                        Image(systemName: "sparkles")
+                            .foregroundStyle(.purple)
+                        Text(summary)
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(.vertical, 4)
+                }
+            }
+            
             ForEach(groupedByDate, id: \.key) { section in
                 Section(header: Text(section.key)) {
                     ForEach(section.value) { notif in

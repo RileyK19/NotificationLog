@@ -2,6 +2,20 @@
 
 A zero-dependency Swift package that adds a notification log sheet to any SwiftUI app. Fetches notifications from Supabase by `appID`, auto-shows the sheet on new entries, tracks read state locally, and includes a badge button — all in one `.notificationLog(config:)` modifier.
 
+Also includes a built-in feedback system for bug reports and suggestions, and an on-device AI summary of unread notifications powered by Apple Intelligence (iOS 26+, where available).
+
+---
+
+## Screenshots
+
+| Notification Log | Notification Detail | Feedback Sheet |
+|:---:|:---:|:---:|
+| ![Notification Log](Screenshots/NotificationLog.png) | ![Admin](Screenshots/AdminNotificationLog.png) | ![Feedback Sheet](Screenshots/FeedbackSheet.png) |
+
+| Admin — Send | Admin — Feedback |
+|:---:|:---:|
+| ![Admin Send](Screenshots/AdminNotificationLog.png) | ![Admin Feedback](Screenshots/AdminFeedbackSheet.png) |
+
 ---
 
 ## Setup
@@ -15,22 +29,9 @@ Or in `Package.swift`:
 .package(url: "https://github.com/you/NotificationLog", from: "1.0.0")
 ```
 
-### 2. Create the Supabase table
+### 2. Create the Supabase tables
 
-Run `supabase_schema.sql` in your Supabase Dashboard → SQL Editor.
-
-```sql
--- The key table shape:
-create table notifications (
-    notification_id  uuid primary key default gen_random_uuid(),
-    app_id           text        not null,
-    title            text        not null,
-    icon             text,          -- image URL
-    thumbnail        text,          -- image URL  
-    date_added       timestamptz not null default now(),
-    details          jsonb          -- { description, image_url }
-);
-```
+Run `supabase_schema.sql` in your Supabase Dashboard → SQL Editor. This creates both the `notifications` and `feedback` tables.
 
 ### 3. Attach the modifier
 
@@ -56,6 +57,32 @@ That's it. The sheet auto-appears when new notifications arrive.
 
 ---
 
+## Buttons
+
+Both buttons work anywhere in the view hierarchy below `.notificationLog(config:)` — no extra config needed.
+
+```swift
+// Bell icon — opens the notification log with unread badge
+NotificationLogButton()
+
+// Flag icon — opens a bug report / suggestion form
+FeedbackButton()
+```
+
+```swift
+// Typical toolbar usage
+.toolbar {
+    ToolbarItem(placement: .navigationBarTrailing) {
+        NotificationLogButton()
+    }
+    ToolbarItem(placement: .navigationBarTrailing) {
+        FeedbackButton()
+    }
+}
+```
+
+---
+
 ## Configuration
 
 ```swift
@@ -67,6 +94,14 @@ NotificationLogConfig(
     tableName:       "notifications"              // override if needed
 )
 ```
+
+---
+
+## AI Summary
+
+When Apple Intelligence is available on the user's device (iOS 26+), the notification log automatically shows a one-sentence summary of unread notifications at the top of the sheet — powered by the on-device `FoundationModels` framework. No API key required, nothing leaves the device.
+
+On devices without Apple Intelligence enabled the summary is silently skipped — no UI change, no errors.
 
 ---
 
@@ -87,17 +122,6 @@ Text("\(notifVM?.unread.count ?? 0) unread")
 await notifVM?.refresh()
 ```
 
-### Built-in bell button (with badge)
-
-```swift
-// In a toolbar:
-.toolbar {
-    ToolbarItem(placement: .navigationBarTrailing) {
-        NotificationLogButton()
-    }
-}
-```
-
 ---
 
 ## Posting notifications (Admin / Companion App)
@@ -107,7 +131,7 @@ Use `NotificationLogService` with your **service role key** (never ship in clien
 ```swift
 let service = NotificationLogService(config: NotificationLogConfig(
     supabaseURL: "https://xxx.supabase.co",
-    supabaseAnonKey: "YOUR_SERVICE_ROLE_KEY",  // ← service role for writes
+    supabaseAnonKey: "YOUR_SERVICE_ROLE_KEY",
     appID: "com.example.myapp"
 ))
 
@@ -122,12 +146,27 @@ try await service.postNotification(NewNotificationPayload(
 ))
 ```
 
-See `Examples/AdminApp.swift` for a full SwiftUI admin interface.
+---
+
+## Reading feedback (Admin / Companion App)
+
+Use `FeedbackService` with your **service role key** to fetch submitted feedback:
+
+```swift
+let service = FeedbackService(config: NotificationLogConfig(
+    supabaseURL: "https://xxx.supabase.co",
+    supabaseAnonKey: "YOUR_SERVICE_ROLE_KEY",
+    appID: "com.example.myapp"
+))
+
+let feedback = try await service.fetchFeedback(for: "com.example.myapp")
+```
 
 ---
 
 ## Schema reference
 
+### notifications
 | Column | Type | Notes |
 |--------|------|-------|
 | `notification_id` | `uuid` | PK, auto-generated |
@@ -138,14 +177,27 @@ See `Examples/AdminApp.swift` for a full SwiftUI admin interface.
 | `date_added` | `timestamptz` | Defaults to `now()` |
 | `details` | `jsonb?` | `{ description, image_url }` |
 
-The `details` JSONB column is intentionally open — add more fields freely without migrations.
+### feedback
+| Column | Type | Notes |
+|--------|------|-------|
+| `feedback_id` | `uuid` | PK, auto-generated |
+| `app_id` | `text` | Filters per-app |
+| `type` | `text` | `bug` or `suggestion` |
+| `title` | `text` | Short summary from user |
+| `description` | `text?` | Full detail |
+| `sender_name` | `text?` | Optional, filterable in admin |
+| `app_version` | `text?` | Auto-captured |
+| `device_info` | `text?` | Auto-captured |
+| `date_added` | `timestamptz` | Defaults to `now()` |
 
 ---
 
 ## Supabase RLS
 
-The included schema uses:
-- **Public read** — anon key can SELECT (safe for client apps)  
-- **Service insert** — only service_role key can INSERT (keep in admin app only)
+**notifications**
+- Public read — anon key can SELECT
+- Service insert — only service_role key can INSERT
 
-To allow anon inserts (e.g. user-generated notifications), swap the insert policy to `with check (true)`.
+**feedback**
+- Public insert — anyone can submit feedback
+- Service read — only service_role key can SELECT (keep feedback private to you)

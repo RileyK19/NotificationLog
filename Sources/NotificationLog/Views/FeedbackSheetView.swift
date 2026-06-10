@@ -130,3 +130,11 @@ struct FeedbackSheetView: View {
         isSending = false
     }
 }
+
+#Preview {
+    FeedbackSheetView(config: NotificationLogConfig(
+        supabaseURL: "https://example.supabase.co",
+        supabaseAnonKey: "key",
+        appID: "com.example.preview"
+    ))
+}
